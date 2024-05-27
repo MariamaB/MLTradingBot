@@ -1,5 +1,7 @@
+from alpaca_trade_api.common import URL
 from lumibot.brokers import Alpaca
 from lumibot.backtesting import YahooDataBacktesting
+from lumibot.entities import Asset
 from lumibot.strategies.strategy import Strategy
 from lumibot.traders import Trader
 from datetime import datetime 
@@ -16,17 +18,19 @@ ALPACA_CREDS = {
     "API_SECRET": API_SECRET, 
     "PAPER": True
 }
+SYMBOL = "TSLA"
+ASSET_TYPE = "stock"
 
 class MLTrader(Strategy): 
-    def initialize(self, symbol:str="SPY", cash_at_risk:float=.5): 
+    def initialize(self, symbol: str = SYMBOL, cash_at_risk: float = .5):
         self.symbol = symbol
         self.sleeptime = "24H" 
         self.last_trade = None 
         self.cash_at_risk = cash_at_risk
-        self.api = REST(base_url=BASE_URL, key_id=API_KEY, secret_key=API_SECRET)
+        self.api = REST(base_url=URL(BASE_URL), key_id=API_KEY, secret_key=API_SECRET)
 
     def position_sizing(self): 
-        cash = self.get_cash() 
+        cash = self.get_portfolio_value()
         last_price = self.get_last_price(self.symbol)
         quantity = round(cash * self.cash_at_risk / last_price,0)
         return cash, last_price, quantity
@@ -54,7 +58,8 @@ class MLTrader(Strategy):
                 if self.last_trade == "sell": 
                     self.sell_all() 
                 order = self.create_order(
-                    self.symbol, 
+                    Asset(symbol=self.symbol, asset_type=ASSET_TYPE),
+                    # self.symbol,
                     quantity, 
                     "buy", 
                     type="bracket", 
@@ -63,11 +68,13 @@ class MLTrader(Strategy):
                 )
                 self.submit_order(order) 
                 self.last_trade = "buy"
+
             elif sentiment == "negative" and probability > .999: 
                 if self.last_trade == "buy": 
                     self.sell_all() 
                 order = self.create_order(
-                    self.symbol, 
+                    Asset(symbol=self.symbol, asset_type=ASSET_TYPE),
+                    # self.symbol,
                     quantity, 
                     "sell", 
                     type="bracket", 
@@ -79,16 +86,18 @@ class MLTrader(Strategy):
 
 start_date = datetime(2020,1,1)
 end_date = datetime(2023,12,31) 
-broker = Alpaca(ALPACA_CREDS) 
-strategy = MLTrader(name='mlstrat', broker=broker, 
-                    parameters={"symbol":"SPY", 
-                                "cash_at_risk":.5})
-strategy.backtest(
-    YahooDataBacktesting, 
-    start_date, 
-    end_date, 
-    parameters={"symbol":"SPY", "cash_at_risk":.5}
-)
+broker = Alpaca(ALPACA_CREDS)
+
+strategy = MLTrader(name='mlstrat', broker=broker,
+                    parameters={"symbol": SYMBOL,
+                                "cash_at_risk": .5})
+# strategy.backtest(
+#     YahooDataBacktesting,
+#     start_date,
+#     end_date,
+#     parameters={"symbol": SYMBOL, "cash_at_risk": .5}
+# )
+
 # trader = Trader()
 # trader.add_strategy(strategy)
 # trader.run_all()
