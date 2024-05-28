@@ -24,7 +24,7 @@ ASSET_TYPE = "stock"
 class MLTrader(Strategy): 
     def initialize(self, symbol: str = SYMBOL, cash_at_risk: float = .5):
         self.symbol = symbol
-        self.sleeptime = "24H" 
+        self.sleeptime = "1M"
         self.last_trade = None 
         self.cash_at_risk = cash_at_risk
         self.api = REST(base_url=URL(BASE_URL), key_id=API_KEY, secret_key=API_SECRET)
@@ -84,8 +84,27 @@ class MLTrader(Strategy):
                 self.submit_order(order) 
                 self.last_trade = "sell"
 
-start_date = datetime(2020,1,1)
-end_date = datetime(2023,12,31) 
+    def list_alpaca_symbols(self):
+        # Get all active assets
+        active_assets = self.broker.api.get_all_assets()
+        for asset in active_assets:
+            print(f'{asset.symbol}: {asset.name}')
+
+    def get_opening_hours(self):
+        # Check if the market is open now.
+        clock = self.api.get_clock()
+        print('The market is {}'.format('open.' if clock.is_open else 'closed.'))
+
+        # Check when the market was open on Dec. 1, 2018
+        date = '2018-12-01'
+        calendar = self.api.get_calendar(start=date, end=date)[0]
+        print('The market opened at {} and closed at {} on {}.'.format(
+            calendar.open,
+            calendar.close,
+            date))
+
+# start_date = datetime(2020,1,1)
+# end_date = datetime(2023,12,31)
 broker = Alpaca(ALPACA_CREDS)
 
 strategy = MLTrader(name='mlstrat', broker=broker,
@@ -98,6 +117,6 @@ strategy = MLTrader(name='mlstrat', broker=broker,
 #     parameters={"symbol": SYMBOL, "cash_at_risk": .5}
 # )
 
-# trader = Trader()
-# trader.add_strategy(strategy)
-# trader.run_all()
+trader = Trader()
+trader.add_strategy(strategy)
+trader.run_all()
